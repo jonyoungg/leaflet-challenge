@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earthquake Map</title>
+  
+  <!-- Include Leaflet CSS for the map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    /* Set the size of the map div */
+    #map {
+      height: 600px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Earthquake Visualization</h1>
+  <div id="map"></div> <!-- This is where the map will go -->
+
+  <script>
+    // Initialize the Leaflet map
+    var map = L.map('map').setView([0, 0], 2);  // World view centered at [0, 0] with zoom level 2
+
+    // Add OpenStreetMap tile layer to the map
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Fetch the earthquake data from the USGS GeoJSON feed
+    fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson')
+        .then(response => response.json())  // Parse the JSON data
+        .then(data => {
+            // Loop through each earthquake feature in the GeoJSON
+            data.features.forEach(feature => {
+                const coords = feature.geometry.coordinates; // [longitude, latitude, depth]
+                const magnitude = feature.properties.mag;    // Earthquake magnitude
+                const depth = coords[2];                     // Earthquake depth
+                const place = feature.properties.place;      // Location description
+                
+                // Create a circle marker for each earthquake
+                var circle = L.circleMarker([coords[1], coords[0]], {  // coords[1] = latitude, coords[0] = longitude
+                    radius: magnitude * 4,  // Scale marker size by magnitude
+                    color: depth < 10 ? 'green' : depth < 50 ? 'orange' : 'red',  // Color based on depth
+                    fillOpacity: 0.7
+                }).addTo(map);
+
+                // Add a popup for each earthquake marker
+                circle.bindPopup(`<b>Location:</b> ${place}<br>
+                                  <b>Magnitude:</b> ${magnitude}<br>
+                                  <b>Depth:</b> ${depth} km`);
+            });
+        })
+        .catch(error => console.error('Error fetching data:', error));  // Error handling
+  </script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earthquake Map</title>
+  
+  <!-- Leaflet CSS for the map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <!-- Leaflet JavaScript -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- D3.js for data fetching -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+    /* Styling for the map */
+    #map {
+      height: 600px;
+      width: 100%;
+    }
+
+    /* Custom styling for the legend */
+    .legend {
+      background-color: white;
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Earthquake Visualization</h1>
+  <div id="map"></div> <!-- Map container -->
+
+  <script>
+    // Initialize the Leaflet map
+    var map = L.map('map').setView([20, 0], 2);  // Center on the globe with zoom level 2
+
+    // Add OpenStreetMap tile layer to the map
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Function to determine marker size based on magnitude
+    function markerSize(magnitude) {
+      return magnitude * 4;
+    }
+
+    // Function to determine marker color based on earthquake depth
+    function markerColor(depth) {
+      if (depth > 90) {
+        return '#d73027'; // Red for deep earthquakes
+      } else if (depth > 70) {
+        return '#fc8d59'; // Orange
+      } else if (depth > 50) {
+        return '#fee08b'; // Yellow
+      } else if (depth > 30) {
+        return '#d9ef8b'; // Light green
+      } else {
+        return '#91cf60'; // Green for shallow earthquakes
+      }
+    }
+
+    // Fetch the earthquake data from the USGS GeoJSON feed
+    d3.json('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson').then(data => {
+      // Loop through each earthquake feature in the GeoJSON
+      data.features.forEach(feature => {
+        const coords = feature.geometry.coordinates; // [longitude, latitude, depth]
+        const magnitude = feature.properties.mag;    // Earthquake magnitude
+        const depth = coords[2];                     // Earthquake depth
+        const place = feature.properties.place;      // Location description
+        
+        // Create a circle marker for each earthquake
+        var circle = L.circleMarker([coords[1], coords[0]], {  // [latitude, longitude]
+          radius: markerSize(magnitude),  // Marker size based on magnitude
+          fillColor: markerColor(depth),  // Marker color based on depth
+          color: '#000',  // Marker border color
+          weight: 1,      // Border weight
+          fillOpacity: 0.7
+        }).addTo(map);
+
+        // Add a popup for each earthquake marker
+        circle.bindPopup(`<b>Location:</b> ${place}<br>
+                          <b>Magnitude:</b> ${magnitude}<br>
+                          <b>Depth:</b> ${depth} km`);
+      });
+    }).catch(error => console.error('Error fetching data:', error));
+
+    // Create a legend to display depth information
+    var legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function(map) {
+      var div = L.DomUtil.create('div', 'legend');
+      div.innerHTML += '<h4>Earthquake Depth (km)</h4>';
+      div.innerHTML += '<i style="background: #d73027"></i> > 90 km<br>';
+      div.innerHTML += '<i style="background: #fc8d59"></i> 70-90 km<br>';
+      div.innerHTML += '<i style="background: #fee08b"></i> 50-70 km<br>';
+      div.innerHTML += '<i style="background: #d9ef8b"></i> 30-50 km<br>';
+      div.innerHTML += '<i style="background: #91cf60"></i> < 30 km<br>';
+      return div;
+    };
+
+    legend.addTo(map);
+  </script>
+</body>
+</html>
+
+
